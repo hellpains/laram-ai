@@ -1,0 +1,44 @@
+# Сервис + Caddy: Caddy сам получает и продлевает HTTPS-сертификат Let's Encrypt для вашего домена.
+# Запуск: docker compose up -d --build
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        WITH_GIGAAM: ${WITH_GIGAAM:-0}
+        GIGAAM_MODEL: ${GIGAAM_MODEL:-v3_e2e_rnnt}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - app-data:/data
+    expose:
+      - "8000"
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?Укажите DOMAIN в файле .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+volumes:
+  app-data:
+  caddy-data:
+  caddy-config:

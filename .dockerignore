@@ -1,0 +1,17 @@
+.git
+.env*
+!.env.example
+**/__pycache__
+.pytest_cache
+.venv
+venv
+data
+samples
+books
+models
+**/*.log
+**/*-log.txt
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx

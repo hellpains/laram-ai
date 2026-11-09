@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Конспекты звонков</title>
+<style>
+:root{
+  --bg:#f4f6f5; --panel:#fff; --fg:#18211c; --muted:#62716a; --line:#dde3df;
+  --accent:#1f6b4a; --accent-fg:#fff; --accent-soft:#e1efe7;
+  --warn:#9a6212; --warn-soft:#f7ecd9; --bad:#a3352b; --bad-soft:#f6e1de; --info:#2d5f8a; --info-soft:#e0eaf4;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --mono:ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#111613; --panel:#19201c; --fg:#e6ece8; --muted:#97a69e; --line:#2b3530;
+  --accent:#58c08e; --accent-fg:#0f1411; --accent-soft:#1c3628;
+  --warn:#e2a64a; --warn-soft:#3a2d17; --bad:#ec8a80; --bad-soft:#3b1f1c; --info:#7fb0dd; --info-soft:#1c2c3b; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--font)}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:17px;margin:0}
+.badges{display:flex;gap:6px;flex-wrap:wrap}
+.badge{font-size:12px;padding:3px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.badge.warn{background:var(--warn-soft);color:var(--warn)}
+main{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:20px;padding:20px;max-width:1300px;margin:0 auto}
+@media (max-width:820px){main{grid-template-columns:1fr;padding:12px}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;min-width:0}
+h2{font-size:14px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+form{display:flex;flex-direction:column;gap:10px}
+label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px}
+input:focus-visible,button:focus-visible,.call:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.drop{border:1.5px dashed var(--line);border-radius:8px;padding:16px;text-align:center;color:var(--muted);cursor:pointer}
+.drop.has{border-color:var(--accent);color:var(--fg)}
+.row{display:flex;gap:10px}.row>label{flex:1;min-width:0}
+button{font:inherit;font-weight:600;border:0;border-radius:7px;padding:9px 14px;background:var(--accent);color:var(--accent-fg);cursor:pointer}
+button.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:default}
+.msg{font-size:13px;min-height:18px}.msg.err{color:var(--bad)}
+.list{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.call{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:var(--panel)}
+.call.active{border-color:var(--accent);background:var(--accent-soft)}
+.call .name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.call .meta{font-size:12px;color:var(--muted);grid-column:1/-1}
+.pill{font-size:11px;padding:2px 8px;border-radius:999px;align-self:start;white-space:nowrap;background:var(--info-soft);color:var(--info)}
+.pill.done{background:var(--accent-soft);color:var(--accent)} .pill.error{background:var(--bad-soft);color:var(--bad)}
+.empty{color:var(--muted);padding:30px 10px;text-align:center}
+.detail-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start;margin-bottom:14px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.detail-head h3{margin:0;font-size:18px;word-break:break-word}
+.outcome{display:inline-block;margin-top:6px;font-size:13px;padding:3px 10px;border-radius:6px;font-weight:600}
+.o-success{background:var(--accent-soft);color:var(--accent)} .o-in_progress{background:var(--info-soft);color:var(--info)}
+.o-refused{background:var(--bad-soft);color:var(--bad)} .o-no_contact{background:var(--warn-soft);color:var(--warn)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:14px}
+.field{border:1px solid var(--line);border-radius:8px;padding:12px;min-width:0}
+.field .k{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px}
+.field ul{margin:0;padding-left:18px}
+.field.next{border-color:var(--accent)} .field.flags{border-color:var(--warn);background:var(--warn-soft)}
+.field.missing .v{color:var(--bad);font-weight:600}
+.crm{font-size:13px;padding:8px 12px;border-radius:7px;margin-bottom:14px;background:var(--bg)}
+.crm.ok{background:var(--accent-soft);color:var(--accent)} .crm.not_found{background:var(--warn-soft);color:var(--warn)}
+.errbox{background:var(--bad-soft);color:var(--bad);padding:10px 12px;border-radius:7px;margin-bottom:14px;font-size:14px}
+details{border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;font-weight:600}
+.transcript{margin-top:10px;display:flex;flex-direction:column;gap:6px;max-height:480px;overflow:auto}
+.line{display:grid;grid-template-columns:44px 1fr;gap:8px;font-size:14px}
+.line .t{font-family:var(--mono);font-size:12px;color:var(--muted);padding-top:2px}
+.line .who{font-weight:600;margin-right:4px}
+.line.mgr .who{color:var(--accent)}
+.progress{display:flex;gap:6px;margin:14px 0}
+.progress span{flex:1;height:5px;border-radius:3px;background:var(--line)}
+.progress span.on{background:var(--accent)}
+@media (prefers-reduced-motion:no-preference){.progress span.cur{animation:pulse 1.2s infinite}}
+@keyframes pulse{50%{opacity:.4}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Конспекты звонков</h1>
+  <div class="badges" id="badges"></div>
+</header>
+<main>
+  <div class="panel">
+    <h2>Новая запись</h2>
+    <form id="form">
+      <div class="drop" id="drop" tabindex="0" role="button">Перетащите запись звонка сюда или нажмите, чтобы выбрать<br><small>mp3, wav, ogg, m4a, amr…</small></div>
+      <input type="file" id="file" name="file" accept="audio/*,video/mp4,.amr,.opus" hidden>
+      <div class="row">
+        <label for="phone">Телефон клиента<input id="phone" name="phone" placeholder="+7 928 000-00-00" inputmode="tel"></label>
+        <label for="deal_id">или ID сделки<input id="deal_id" name="deal_id" placeholder="1234" inputmode="numeric"></label>
+      </div>
+      <button type="submit" id="submit">Обработать звонок</button>
+      <div class="msg" id="msg"></div>
+    </form>
+    <h2 style="margin-top:18px">Звонки</h2>
+    <div class="list" id="list"><div class="empty">Пока нет звонков. Загрузите первую запись.</div></div>
+  </div>
+  <div class="panel" id="detail"><div class="empty">Выберите звонок слева, чтобы увидеть конспект.</div></div>
+</main>
+<script>
+const STATUS = {queued:"В очереди", waiting_record:"Ждём запись", transcribing:"Расшифровка", summarizing:"Конспект", crm:"Запись в CRM", done:"Готово", error:"Ошибка"};
+const STEPS = ["waiting_record","transcribing","summarizing","crm","done"];
+const OUTCOME = {success:"Цель достигнута", in_progress:"В работе, нужен следующий контакт", refused:"Отказ", no_contact:"Разговор не состоялся"};
+let calls = [], selected = null, timer = null, sttAvailable = {};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtDate = iso => new Date(iso).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+const fmtDur = s => s ? `${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,"0")}` : "";
+const ruDate = d => d ? new Date(d+"T00:00").toLocaleDateString("ru-RU",{weekday:"short",day:"numeric",month:"long"}) : "";
+
+async function api(path, opts){
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(data.error || `Ошибка ${r.status}`);
+  return data;
+}
+
+async function loadStatus(){
+  try{
+    const s = await api("/api/status");
+    sttAvailable = s.stt_available || {};
+    const b = [];
+    if(s.demo) b.push(`<span class="badge warn">Демо-режим: подключите ключи Yandex в .env</span>`);
+    else b.push(`<span class="badge">Распознавание: ${esc(s.stt_label)}</span><span class="badge">Конспект: YandexGPT</span>`);
+    b.push(s.bitrix ? `<span class="badge">Битрикс24 подключён</span>` : `<span class="badge warn">Битрикс24 не подключён</span>`);
+    $("badges").innerHTML = b.join("");
+  }catch(e){}
+}
+
+async function refresh(){
+  try{ calls = await api("/api/calls"); }catch(e){ return; }
+  renderList();
+  if(selected) loadDetail(selected, true);
+  const busy = calls.some(c => !["done","error"].includes(c.status));
+  clearTimeout(timer);
+  if(busy) timer = setTimeout(refresh, 2500);
+}
+
+function renderList(){
+  if(!calls.length){ $("list").innerHTML = `<div class="empty">Пока нет звонков. Загрузите первую запись.</div>`; return; }
+  $("list").innerHTML = calls.map(c => `
+    <div class="call ${c.id===selected?"active":""}" tabindex="0" data-id="${c.id}">
+      <span class="name">${esc(c.phone || (c.deal_id ? "Сделка #"+c.deal_id : c.filename || "Звонок"))}</span>
+      <span class="pill ${c.status}">${STATUS[c.status]||c.status}</span>
+      <span class="meta">${fmtDate(c.created_at)}${c.duration_s ? " · "+fmtDur(c.duration_s) : ""}${c.summary ? " · "+esc(OUTCOME[c.summary.outcome]||"") : ""}</span>
+    </div>`).join("");
+}
+
+$("list").addEventListener("click", e => { const el = e.target.closest(".call"); if(el) select(el.dataset.id); });
+$("list").addEventListener("keydown", e => { const el = e.target.closest(".call"); if(el && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); select(el.dataset.id); }});
+
+function select(id){ selected = id; renderList(); loadDetail(id); }
+
+async function loadDetail(id, quiet){
+  let c;
+  try{ c = await api(`/api/calls/${id}`); }catch(e){ if(!quiet) $("detail").innerHTML = `<div class="errbox">${esc(e.message)}</div>`; return; }
+  if(id !== selected) return;
+  const open = $("detail").querySelector("details")?.open;
+  $("detail").innerHTML = renderDetail(c);
+  if(open) $("detail").querySelector("details")?.setAttribute("open","");
+  $("retry")?.addEventListener("click", async () => { try{ await api(`/api/calls/${id}/retry`,{method:"POST"}); refresh(); }catch(e){ alertBox(e.message); }});
+  $("detail").querySelectorAll(".stt-btn").forEach(b => b.addEventListener("click", async () => { try{ await api(`/api/calls/${id}/retry?fresh=1&stt=${b.dataset.stt}`,{method:"POST"}); refresh(); }catch(e){ alertBox(e.message); }}));
+}
+
+function alertBox(m){ $("detail").insertAdjacentHTML("afterbegin", `<div class="errbox">${esc(m)}</div>`); }
+
+function renderDetail(c){
+  const title = esc(c.phone || (c.deal_id ? "Сделка #"+c.deal_id : c.filename || "Звонок"));
+  const idx = STEPS.indexOf(c.status);
+  let h = `<div class="detail-head"><div><h3>${title}</h3><div style="color:var(--muted);font-size:13px">${fmtDate(c.created_at)}${c.duration_s ? " · длительность "+fmtDur(c.duration_s) : ""} · ${esc(c.filename||"")}</div>`;
+  if(c.summary) h += `<span class="outcome o-${c.summary.outcome}">${OUTCOME[c.summary.outcome]||c.summary.outcome}</span>`;
+  h += `</div>${["done","error"].includes(c.status) ? `<div class="actions">${Object.entries(sttAvailable).map(([k,label]) => `<button class="ghost stt-btn" data-stt="${k}" title="Заново распознать речь этой моделью и пересобрать конспект">Распознать: ${esc(label)}</button>`).join("")}<button class="ghost" id="retry" title="Пересобрать только конспект по готовой расшифровке">Обновить конспект</button></div>` : ""}</div>`;
+  if(!["done","error"].includes(c.status)){
+    h += `<div class="progress">${STEPS.map((s,i)=>`<span class="${i<idx?"on":""} ${i===idx?"on cur":""}"></span>`).join("")}</div><p>${STATUS[c.status]}…</p>`;
+  }
+  if(c.error) h += `<div class="errbox"><b>Ошибка:</b> ${esc(c.error)}</div>`;
+  if(c.crm_message) h += `<div class="crm ${esc(c.crm_status)}">CRM: ${esc(c.crm_message)}</div>`;
+  const s = c.summary;
+  if(s){
+    const manager = s.manager_speaker;
+    h += `<div class="grid">
+      <div class="field" style="grid-column:1/-1"><div class="k">Суть звонка</div><div class="v">${esc(s.summary)||"—"}</div></div>
+      <div class="field"><div class="k">Чего добились</div><div class="v">${esc(s.result)||"—"}</div></div>
+      <div class="field next ${s.next_step?"":"missing"}"><div class="k">Следующий шаг</div><div class="v">${s.next_step ? esc(s.next_step)+(s.next_step_date ? `<br><b>${ruDate(s.next_step_date)}</b>` : "") : "Не назначен"}</div></div>
+      <div class="field"><div class="k">Договорённости</div>${s.agreements.length ? `<ul>${s.agreements.map(a=>`<li>${esc(a)}</li>`).join("")}</ul>` : "—"}</div>
+      <div class="field"><div class="k">Возражения клиента</div>${s.objections.length ? `<ul>${s.objections.map(a=>`<li>${esc(a)}</li>`).join("")}</ul>` : "—"}</div>
+      ${s.quality_flags.length ? `<div class="field flags" style="grid-column:1/-1"><div class="k">На разбор РОПу</div><ul>${s.quality_flags.map(a=>`<li>${esc(a)}</li>`).join("")}</ul></div>` : ""}
+    </div>`;
+    c._manager = manager;
+  }
+  const t = c.transcript;
+  if(t && t.segments){
+    h += `<details><summary>Расшифровка (${t.segments.length} реплик) · ${esc(t.language)}</summary><div class="transcript">${t.segments.map(sg => {
+      const m = Math.floor(sg.start_ms/60000), sec = Math.floor(sg.start_ms/1000)%60;
+      const isMgr = c._manager && sg.speaker === c._manager;
+      const who = c._manager ? (isMgr ? "Менеджер" : "Клиент") : "Собеседник "+sg.speaker;
+      return `<div class="line ${isMgr?"mgr":""}"><span class="t">${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}</span><span><span class="who">${who}:</span>${esc(sg.text)}</span></div>`;
+    }).join("")}</div></details>`;
+  }
+  return h;
+}
+
+// Загрузка файла
+const fileInput = $("file"), drop = $("drop");
+drop.addEventListener("click", () => fileInput.click());
+drop.addEventListener("keydown", e => { if(e.key==="Enter"||e.key===" "){ e.preventDefault(); fileInput.click(); }});
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("has"); });
+drop.addEventListener("dragleave", () => { if(!fileInput.files.length) drop.classList.remove("has"); });
+drop.addEventListener("drop", e => { e.preventDefault(); if(e.dataTransfer.files.length){ fileInput.files = e.dataTransfer.files; showFile(); }});
+fileInput.addEventListener("change", showFile);
+function showFile(){ const f = fileInput.files[0]; drop.classList.toggle("has", !!f); drop.innerHTML = f ? `Файл: <b>${esc(f.name)}</b> (${(f.size/1048576).toFixed(1)} МБ)` : drop.innerHTML; }
+
+$("form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const msg = $("msg"); msg.className = "msg";
+  if(!fileInput.files.length){ msg.className = "msg err"; msg.textContent = "Выберите файл записи"; return; }
+  const fd = new FormData($("form"));
+  fd.set("file", fileInput.files[0]);
+  $("submit").disabled = true; msg.textContent = "Загружаю…";
+  try{
+    const r = await api("/api/calls", {method:"POST", body:fd});
+    msg.textContent = "Звонок принят в обработку";
+    $("form").reset(); fileInput.value = ""; drop.classList.remove("has");
+    drop.innerHTML = 'Перетащите запись звонка сюда или нажмите, чтобы выбрать<br><small>mp3, wav, ogg, m4a, amr…</small>';
+    selected = r.id; await refresh();
+  }catch(err){ msg.className = "msg err"; msg.textContent = err.message; }
+  finally{ $("submit").disabled = false; }
+});
+
+loadStatus(); refresh();
+</script>
+</body>
+</html>

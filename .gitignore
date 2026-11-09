@@ -1,0 +1,52 @@
+# Credentials and local configuration (including backups)
+.env*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+*credentials*.json
+*service-account*.json
+secrets/
+.secrets/
+
+# Python and tools
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.idea/
+.vscode/
+node_modules/
+
+# Runtime data, private recordings, training corpora and generated output
+/data/
+/samples/*
+!/samples/.gitkeep
+/books/*
+!/books/youtube.bat
+*.db
+*.db-*
+*.sqlite*
+*.log
+*-log.txt
+/backups/
+*.zip
+*.tar
+*.tar.gz
+/youtube/audio/
+/youtube-v1/
+/chechen/chechen/
+/АДРЕС.txt
+/ИСТОРИЯ_ПРОЕКТА.md
+
+# Keep the current trained model; omit old checkpoints
+/models/*
+!/models/chechen-ctc-v3/

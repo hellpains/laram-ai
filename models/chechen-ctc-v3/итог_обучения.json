@@ -1,0 +1,46 @@
+{
+  "model": "omniASR_CTC_300M_v2",
+  "books": [
+    "eha-buysanash-01",
+    "eha-buysanash-02",
+    "eha-buysanash-03",
+    "eha-buysanash-04",
+    "eha-buysanash-05",
+    "eha-buysanash-06",
+    "eha-buysanash-07",
+    "eha-buysanash-08",
+    "eha-buysanash-09",
+    "eha-buysanash-10",
+    "mix-podcast-01"
+  ],
+  "train_phrases": 415,
+  "dev_phrases": 393,
+  "test_phrases": 0,
+  "train_minutes": 33.0,
+  "char_mapping": {},
+  "lr": "1e-05",
+  "epochs": 15.0,
+  "mode": "continue",
+  "before": {
+    "dev": {
+      "uer": 42.6725,
+      "wer": 89.9711
+    }
+  },
+  "previous_model": "chechen-ctc-v2",
+  "previous": {
+    "dev": {
+      "uer": 7.64959,
+      "wer": 33.1244
+    }
+  },
+  "train_minutes_spent": 3.5,
+  "output": "/books/train_runs/20261105-0447/train_0",
+  "model_file": "/models/chechen-ctc-v3/model.pt",
+  "after": {
+    "dev": {
+      "uer": 7.54961,
+      "wer": 33.4137
+    }
+  }
+}
