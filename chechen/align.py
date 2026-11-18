@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import csv
+from functools import lru_cache
 import html
 import json
 import os
@@ -217,18 +218,28 @@ def read_wav(path: Path):
     return data.astype("float32") / 32768.0
 
 
-def build_aligner(samples):
-    """Готовит модель MMS_FA и возвращает (число кадров, функцию выравнивания)."""
+@lru_cache(maxsize=1)
+def alignment_model():
     import torch
     import torchaudio
-    import torchaudio.functional as F
 
-    torch.set_num_threads(max(1, os.cpu_count() or 1))
+    torch.set_num_threads(min(8, os.cpu_count() or 1))
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    if device == "cuda" and os.environ.get("ALIGN_TF32") == "1":
+        torch.set_float32_matmul_precision("high")
     print(f"  устройство: {'видеокарта ' + torch.cuda.get_device_name(0) if device == 'cuda' else 'процессор'}")
     bundle = torchaudio.pipelines.MMS_FA
     model = bundle.get_model(with_star=True).eval().to(device)
     vocab = bundle.get_dict(star="*")
+    return model, vocab, device
+
+
+def build_aligner(samples):
+    """Возвращает число кадров и функцию выравнивания."""
+    import torch
+    import torchaudio.functional as F
+
+    model, vocab, device = alignment_model()
     star = vocab["*"]
     wav = torch.from_numpy(samples)[None]
 
@@ -293,18 +304,18 @@ def process_pair(audio: Path, text_path: Path) -> dict:
     units = [Unit(k, t, romanize(t)) for k, t in enumerate(split_units(text))]
     print(f"  фраз в тексте: {len(units)}")
 
-    wav16 = Path(tempfile.mkdtemp(prefix="align-")) / "full16k.wav"  # временный файл — не в папке пользователя
-    to_wav16k(audio, wav16)
-    samples = read_wav(wav16)
-    print(f"  длительность записи: {len(samples) / SR / 60:.1f} мин")
+    with tempfile.TemporaryDirectory(prefix="align-") as tmp:
+        wav16 = Path(tmp) / "full16k.wav"
+        to_wav16k(audio, wav16)
+        samples = read_wav(wav16)
+        print(f"  длительность записи: {len(samples) / SR / 60:.1f} мин")
 
-    total, align_fn = build_aligner(samples)
-    align_all(units, total, align_fn)
-    for u in units:
-        judge(u)
+        total, align_fn = build_aligner(samples)
+        align_all(units, total, align_fn)
+        for u in units:
+            judge(u)
 
-    rows = cut_clips(out, name, units, wav16)
-    wav16.unlink(missing_ok=True)
+        rows = cut_clips(out, name, units, wav16)
     return finish(out, name, audio, units, rows, total)
 
 
@@ -380,7 +391,9 @@ def finish(out: Path, name: str, audio: Path, units: list[Unit], rows: list[dict
         "минут_записи": round(total / FPS / 60, 1),
         "причины_отсева": {s: sum(1 for u in units if u.status == s) for s in sorted({u.status for u in units}) if s != "ok"},
     }
-    (out / "stats.json").write_text(json.dumps(stats, ensure_ascii=False, indent=2), encoding="utf-8")
+    marker = out / "stats.json.tmp"
+    marker.write_text(json.dumps(stats, ensure_ascii=False, indent=2), encoding="utf-8")
+    marker.replace(out / "stats.json")
     print(f"  в датасет вошло: {len(good)} фраз, {stats['минут_в_датасете']} мин из {stats['минут_записи']} мин")
     return stats
 

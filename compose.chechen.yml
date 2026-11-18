@@ -1,0 +1,19 @@
+name: chechen-speech
+
+services:
+  chechen:
+    build:
+      context: ./chechen
+      target: web
+    ports:
+      - "127.0.0.1:8001:8000"
+    environment:
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+    volumes:
+      - ./models/chechen-ctc-v7:/models/chechen-ctc-v7:ro
+      - model-cache:/root/.cache
+
+volumes:
+  model-cache:
+    external: true
+    name: callnotes-chechen-models

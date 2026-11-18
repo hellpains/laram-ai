@@ -90,7 +90,8 @@ summary{cursor:pointer;font-weight:600}
         <label for="deal_id">или ID сделки<input id="deal_id" name="deal_id" placeholder="1234" inputmode="numeric"></label>
       </div>
       <button type="submit" id="submit">Обработать звонок</button>
-      <div class="msg" id="msg"></div>
+      <button type="button" id="record">Записать с микрофона</button>
+      <div class="msg" id="msg" role="status"></div>
     </form>
     <h2 style="margin-top:18px">Звонки</h2>
     <div class="list" id="list"><div class="empty">Пока нет звонков. Загрузите первую запись.</div></div>
@@ -202,29 +203,100 @@ function renderDetail(c){
 
 // Загрузка файла
 const fileInput = $("file"), drop = $("drop");
+const recordButton = $("record"), submitButton = $("submit");
+const dropPrompt = drop.innerHTML;
+let recordingFile = null;
+let recorder = null;
 drop.addEventListener("click", () => fileInput.click());
 drop.addEventListener("keydown", e => { if(e.key==="Enter"||e.key===" "){ e.preventDefault(); fileInput.click(); }});
 drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("has"); });
 drop.addEventListener("dragleave", () => { if(!fileInput.files.length) drop.classList.remove("has"); });
-drop.addEventListener("drop", e => { e.preventDefault(); if(e.dataTransfer.files.length){ fileInput.files = e.dataTransfer.files; showFile(); }});
-fileInput.addEventListener("change", showFile);
-function showFile(){ const f = fileInput.files[0]; drop.classList.toggle("has", !!f); drop.innerHTML = f ? `Файл: <b>${esc(f.name)}</b> (${(f.size/1048576).toFixed(1)} МБ)` : drop.innerHTML; }
+drop.addEventListener("drop", e => { e.preventDefault(); if(!fileInput.disabled && e.dataTransfer.files.length){ fileInput.files = e.dataTransfer.files; selectFile(); }});
+fileInput.addEventListener("change", selectFile);
+function selectFile(){
+  recordingFile = null;
+  showFile();
+}
+function showFile(){
+  const f = recordingFile || fileInput.files[0];
+  drop.classList.toggle("has", !!f);
+  drop.innerHTML = f ? `Файл: <b>${esc(f.name)}</b> (${(f.size/1048576).toFixed(1)} МБ)` : dropPrompt;
+}
+
+function showError(message){
+  $("msg").className = "msg err";
+  $("msg").textContent = message;
+}
+
+recordButton.addEventListener("click", async () => {
+  if(recorder){
+    recordButton.disabled = true;
+    recorder.stop();
+    return;
+  }
+  if(!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder){
+    showError("Запись с микрофона доступна в поддерживаемом браузере через HTTPS или localhost.");
+    return;
+  }
+  recordButton.disabled = submitButton.disabled = fileInput.disabled = true;
+  let stream;
+  function finish(){
+    stream?.getTracks().forEach(track => track.stop());
+    recorder = null;
+    recordButton.textContent = "Записать с микрофона";
+    recordButton.disabled = submitButton.disabled = fileInput.disabled = false;
+  }
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    const chunks = [];
+    let failed = false;
+    const mimeType = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg;codecs=opus"]
+      .find(type => MediaRecorder.isTypeSupported(type));
+    recorder = new MediaRecorder(stream, mimeType ? {mimeType} : undefined);
+    recorder.addEventListener("dataavailable", e => { if(e.data.size) chunks.push(e.data); });
+    recorder.addEventListener("error", () => { failed = true; finish(); showError("Запись прервалась. Попробуйте снова."); });
+    recorder.addEventListener("stop", () => {
+      if(failed) return;
+      finish();
+      if(!chunks.length){ showError("Запись пуста. Попробуйте снова."); return; }
+      const type = chunks[0].type || mimeType;
+      const ext = {"audio/webm":"webm", "video/webm":"webm", "audio/mp4":"m4a", "video/mp4":"mp4", "audio/ogg":"ogg"}[type?.split(";")[0]];
+      if(!ext){ showError("Браузер записал аудио в неподдерживаемом формате."); return; }
+      recordingFile = new File(chunks, `microphone-${Date.now()}.${ext}`, {type});
+      fileInput.value = "";
+      showFile();
+      $("form").requestSubmit(submitButton);
+    }, {once:true});
+    recorder.start();
+    recordButton.textContent = "Остановить и обработать";
+    recordButton.disabled = false;
+    $("msg").className = "msg";
+    $("msg").textContent = "Идёт запись с микрофона…";
+  }catch(err){
+    finish();
+    showError(err.name === "NotAllowedError" ? "Разрешите доступ к микрофону в браузере и попробуйте снова." : "Не удалось начать запись. Проверьте микрофон.");
+  }
+});
 
 $("form").addEventListener("submit", async e => {
   e.preventDefault();
+  if(submitButton.disabled) return;
   const msg = $("msg"); msg.className = "msg";
-  if(!fileInput.files.length){ msg.className = "msg err"; msg.textContent = "Выберите файл записи"; return; }
+  const file = recordingFile || fileInput.files[0];
+  if(!file){ showError("Выберите файл или запишите аудио"); return; }
   const fd = new FormData($("form"));
-  fd.set("file", fileInput.files[0]);
-  $("submit").disabled = true; msg.textContent = "Загружаю…";
+  fd.set("file", file);
+  submitButton.disabled = recordButton.disabled = fileInput.disabled = true;
+  msg.textContent = "Загружаю…";
   try{
     const r = await api("/api/calls", {method:"POST", body:fd});
     msg.textContent = "Звонок принят в обработку";
-    $("form").reset(); fileInput.value = ""; drop.classList.remove("has");
-    drop.innerHTML = 'Перетащите запись звонка сюда или нажмите, чтобы выбрать<br><small>mp3, wav, ogg, m4a, amr…</small>';
+    $("form").reset();
+    recordingFile = null;
+    showFile();
     selected = r.id; await refresh();
   }catch(err){ msg.className = "msg err"; msg.textContent = err.message; }
-  finally{ $("submit").disabled = false; }
+  finally{ submitButton.disabled = recordButton.disabled = fileInput.disabled = false; }
 });
 
 loadStatus(); refresh();

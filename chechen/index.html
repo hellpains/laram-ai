@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Чеченская речь</title>
+  <style>
+    :root{font-family:Inter,system-ui,sans-serif;color:#f6f7ff;background:#090e1c;--muted:#a5b1cd;--accent:#9186ff;--line:#252e4b}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% 5%,#121b34 0%,#0b1121 53%,#080d19 100%)}
+    main{width:min(100% - 36px,832px);margin:auto;padding: clamp(30px,5vh,55px) 0 44px}
+    header{text-align:center}
+    .wave{height:42px;display:inline-flex;align-items:center;gap:5px;color:var(--accent)}
+    .wave i{width:5px;height:28%;border-radius:5px;background:currentColor}
+    .wave i:nth-child(2),.wave i:nth-child(4){height:65%}
+    .wave i:nth-child(3){height:100%}
+    h1{font-size:clamp(2.25rem,6vw,3.5rem);line-height:1.1;letter-spacing:-.045em;margin:16px 0}
+    header p{font-size:clamp(1rem,2.4vw,1.25rem);line-height:1.5;color:var(--muted);margin:0}
+    button{font:inherit;color:inherit;cursor:pointer}
+    button:disabled{cursor:default;opacity:.48}
+    button:focus-visible{outline:3px solid #b2a8ff;outline-offset:5px}
+    .controls{text-align:center;padding:28px 0 0}
+    .mic-wrap{display:grid;place-items:center;width:168px;height:168px;margin:0 auto 20px;border:1px solid #4d43a5;border-radius:50%;box-shadow:0 0 0 25px #41339921,0 0 0 52px #41339912,inset 0 0 28px #5e39fe43}
+    .mic{display:grid;place-items:center;width:120px;height:120px;border:1px solid #aaabff80;border-radius:50%;background:radial-gradient(circle at 32% 18%,#9582ff,#6b4df4 58%,#436cec);box-shadow:inset 0 2px 6px #ffffff63,0 8px 25px #6549ff66}
+    .mic:not(:disabled):hover{filter:brightness(1.17)}
+    .stop{display:none;width:32px;height:32px;border-radius:7px;background:#fff}
+    [data-state=recording] .mic{background:linear-gradient(145deg,#fa677c,#ad345f)}
+    [data-state=recording] .mic svg{display:none}
+    [data-state=recording] .mic .stop{display:block}
+    #record-label{font-size:1.15rem;font-weight:600;margin:0 0 17px}
+    .upload{display:flex;align-items:center;justify-content:center;gap:14px;width:min(100%,608px);min-height:80px;margin:0 auto 28px;border:1px dashed #6658b8;border-radius:15px;background:#131931;text-align:left}
+    .upload:not(:disabled):hover{background:#1d2444}
+    .upload strong,.upload small{display:block}
+    .upload small{color:var(--muted);margin-top:5px}
+    svg{flex:none;vertical-align:middle}
+    .upload svg,.panel svg{color:var(--accent)}
+    .panel{background:#11182e;border:1px solid var(--line);border-radius:16px;padding:20px 23px}
+    .status{display:flex;align-items:center;gap:16px;margin-bottom:22px}
+    .indicator{flex:none;width:42px;height:42px;display:grid;place-items:center;border:2px solid var(--accent);border-radius:50%;color:var(--accent);font-size:20px}
+    [data-state=recording] .indicator,[data-state=error] .indicator{color:#ff95a6;border-color:currentColor}
+    #status{display:block;font-weight:650}
+    #detail{display:block;color:var(--muted);margin-top:5px;font-size:.9rem;line-height:1.45}
+    .label{display:flex;align-items:center;gap:10px}
+    .result-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+    h2{font-size:1rem;margin:0;font-weight:650}
+    .action{padding:8px 12px;border:1px solid #393476;border-radius:9px;background:#24214f;font-size:.9rem}
+    .action:not(:disabled):hover{background:#332b68}
+    #retry{margin-left:auto}
+    #transcript{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;min-height:78px;background:#151d34;border:1px solid var(--line);border-radius:10px;padding:14px 16px;line-height:1.65}
+    .empty{color:var(--muted)}
+    @media(max-width:480px){.panel{padding:15px}.status{gap:10px;flex-wrap:wrap}.result-head{gap:6px}.result-head .label{gap:6px}}
+  </style>
+  <script src="/recorder.js" defer></script>
+</head>
+<body>
+  <main>
+    <header>
+      <span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      <h1>Чеченская речь</h1>
+      <p>Запишите речь или загрузите аудио, чтобы получить текст.</p>
+    </header>
+    <section class="controls" aria-label="Запись и загрузка">
+      <div class="mic-wrap">
+        <button class="mic" id="record" type="button" aria-label="Начать запись">
+          <svg aria-hidden="true" viewBox="0 0 48 48" width="49" height="49" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round">
+            <rect x="17" y="4" width="14" height="26" rx="7" fill="currentColor" stroke="none"/>
+            <path d="M11 23v1a13 13 0 0 0 26 0v-1M24 37v7"/>
+          </svg>
+          <span class="stop" aria-hidden="true"></span>
+        </button>
+      </div>
+      <p id="record-label">Начать запись</p>
+      <input id="audio" type="file" accept="audio/*,.webm,.mp4,.amr,.opus" hidden>
+      <button class="upload" id="upload" type="button">
+        <svg aria-hidden="true" viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18H6a4 4 0 0 1-.6-8A6.5 6.5 0 0 1 18 9a4.5 4.5 0 0 1 0 9h-1M12 21V12m-3 3 3-3 3 3"/></svg>
+        <span><strong>Выбрать аудио</strong><small>MP3, WAV, M4A и другие · до 5 минут, 32 МБ</small></span>
+      </button>
+    </section>
+    <div class="panel status">
+      <div class="indicator" aria-hidden="true">•</div>
+      <div role="status"><strong id="status">Готово к записи</strong><span id="detail">Текст появится после обработки.</span></div>
+      <button class="action" id="retry" type="button" hidden>Повторить</button>
+    </div>
+    <section class="panel" aria-labelledby="result-title">
+      <div class="result-head">
+        <div class="label">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h9l5 5v13H5zM14 3v5h5M8 12h8m-8 4h8"/></svg>
+          <h2 id="result-title">Расшифровка</h2>
+        </div>
+        <button class="action" id="copy" type="button" disabled>Копировать</button>
+      </div>
+      <p id="transcript" class="empty" aria-live="polite">Здесь появится расшифровка вашей записи.</p>
+      <details id="original-panel" hidden>
+        <summary>Исходная расшифровка v7</summary>
+        <p id="original-text"></p>
+      </details>
+      <p id="gemini-notice" class="empty" hidden>Текст расшифровки автоматически отправляется в Gemini для исправления.</p>
+    </section>
+  </main>
+</body>
+</html>

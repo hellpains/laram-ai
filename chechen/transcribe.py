@@ -37,10 +37,12 @@ def find_audio(folder: Path) -> list[Path]:
     return sorted(p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in AUDIO_EXT)
 
 
-def to_wav(src: Path, dst: Path) -> float:
+def to_wav(src: Path, dst: Path, max_duration: float | None = None) -> float:
     """Любой формат → WAV 16 кГц моно. Возвращает длительность в секундах."""
-    proc = subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(src), "-vn", "-ac", "1", "-ar", "16000",
-                           "-c:a", "pcm_s16le", str(dst)], capture_output=True, text=True, timeout=600)
+    command = ["ffmpeg", "-y", "-v", "error", "-i", str(src), "-vn", "-ac", "1", "-ar", "16000"]
+    if max_duration is not None:
+        command += ["-t", str(max_duration)]
+    proc = subprocess.run([*command, "-c:a", "pcm_s16le", str(dst)], capture_output=True, text=True, timeout=600)
     if proc.returncode != 0:
         raise RuntimeError("файл повреждён или это не аудио")
     out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(dst)],

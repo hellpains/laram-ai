@@ -46,6 +46,23 @@ def log(msg: str) -> None:
 # ---------- 1. данные ----------
 
 def collect_rows() -> list[dict]:
+    if MODE == "curated":
+        from prepare_training import EHA_PARTS, SPLITS
+
+        root = BOOKS / "training-che"
+        rows = []
+        for split in SPLITS:
+            audio = (root / f"{split}.tsv").read_text(encoding="utf-8").splitlines()[1:]
+            words = (root / f"{split}.wrd").read_text(encoding="utf-8").splitlines()
+            for entry, text in zip(audio, words, strict=True):
+                path, frames = entry.split("\t")
+                parts = Path(path).parts
+                bible = len(parts) == 6 and parts[:3] == ("bible-che", "pairs", "dataset") and parts[3].startswith("bible-che-")
+                eha = len(parts) == 4 and parts[0] == "dataset" and parts[1] in EHA_PARTS
+                if not (bible or (eha and split == "train")) or ".." in parts:
+                    raise ValueError(f"Путь вне разрешённого корпуса: {path}")
+                rows.append({"book": parts[-3], "rel": path, "samples": int(frames), "text": text, "split": split})
+        return rows
     rows = []
     for manifest in sorted((BOOKS / "dataset").glob("*/manifest.tsv")):
         book = manifest.parent.name
@@ -106,7 +123,7 @@ def apply_map(text: str, mapping: dict[str, str]) -> str:
 
 def write_split(data_dir: Path, split: str, rows: list[dict]) -> None:
     with (data_dir / f"{split}.tsv").open("w", encoding="utf-8", newline="\n") as f:
-        f.write(f"{BOOKS / 'dataset'}\n")
+        f.write(f"{BOOKS if MODE == 'curated' else BOOKS / 'dataset'}\n")
         for r in rows:
             f.write(f"{r['rel']}\t{r['samples']}\n")
     with (data_dir / f"{split}.wrd").open("w", encoding="utf-8", newline="\n") as f:
@@ -280,14 +297,29 @@ def main() -> int:
     for r in rows:
         r["text"] = apply_map(r["text"], mapping)
     rows = [r for r in rows if r["text"]]
-    test = [r for r in rows if r["book"].startswith(TEST_PREFIX)]
-    rest = [r for r in rows if not r["book"].startswith(TEST_PREFIX)]
-    dev = [r for i, r in enumerate(rest) if i % DEV_EVERY == DEV_EVERY // 2]
-    train = [r for i, r in enumerate(rest) if i % DEV_EVERY != DEV_EVERY // 2]
+    if MODE == "curated":
+        train, dev, test = ([r for r in rows if r["split"] == split] for split in ("train", "dev", "test"))
+    else:
+        test = [r for r in rows if r["book"].startswith(TEST_PREFIX)]
+        rest = [r for r in rows if not r["book"].startswith(TEST_PREFIX)]
+        dev = [r for i, r in enumerate(rest) if i % DEV_EVERY == DEV_EVERY // 2]
+        train = [r for i, r in enumerate(rest) if i % DEV_EVERY != DEV_EVERY // 2]
     start_model, lr, epochs = MODEL, LR, EPOCHS
     prev_models = sorted(MODELS.glob("chechen-ctc-v*/model.pt"),
                          key=lambda p: int(re.findall(r"v(\d+)", p.parent.name)[0])) if MODELS.exists() else []
-    if MODE == "continue" and prev_models:
+    if MODE == "curated":
+        model_version = os.environ.get("START_MODEL_VERSION", "chechen-ctc-v3")
+        if not re.fullmatch(r"chechen-ctc-v\d+", model_version):
+            raise ValueError("START_MODEL_VERSION должен иметь формат chechen-ctc-vN")
+        prev = MODELS / model_version / "model.pt"
+        if not prev.is_file() or prev.stat().st_size < 1024:
+            raise FileNotFoundError(f"Не найдены веса для дообучения: {prev}")
+        card = OASR / "src" / "omnilingual_asr" / "cards" / "models" / "chechen_start.yaml"
+        card.write_text(f"name: chechen_start\nmodel_family: wav2vec2_asr\nmodel_arch: 300m_v2\n"
+                        f"checkpoint: {prev}\ntokenizer_ref: {TOKENIZER}\n", encoding="utf-8")
+        start_model, lr, epochs = "chechen_start", os.environ.get("LR", "1e-05"), float(os.environ.get("EPOCHS", "1"))
+        log(f"  Дообучение {model_version} на утверждённом корпусе: «Еха буьйсенаш» и Библия.")
+    elif MODE == "continue" and prev_models:
         prev = prev_models[-1]
         info_file = prev.parent / "итог_обучения.json"
         seen = set(json.loads(info_file.read_text(encoding="utf-8")).get("books", [])) if info_file.exists() else set()
@@ -325,7 +357,7 @@ def main() -> int:
     if test:
         write_split(data_dir, "test", test)
         splits.append("test")
-        log(f"  отдельная проверка (живая речь, в обучение не идёт): {len(test)} фраз, "
+        log(f"  отдельный тест: {len(test)} фраз, "
             f"{sum(r['samples'] for r in test) / SR / 60:.1f} мин")
     write_card(data_dir)
     train_sec = sum(r["samples"] for r in train) / SR
@@ -335,7 +367,7 @@ def main() -> int:
     info = {"model": MODEL, "books": books, "train_phrases": len(train), "dev_phrases": len(dev),
             "test_phrases": len(test),
             "train_minutes": round(train_sec / 60, 1), "char_mapping": mapping, "lr": lr, "epochs": epochs,
-            "mode": "continue" if start_model == "chechen_start" else "full"}
+            "mode": MODE if MODE == "curated" else ("continue" if start_model == "chechen_start" else "full")}
 
     log("\n2. Замер ДО обучения (исходная модель)")
     info["before"] = {sp: evaluate(run_dir, MODEL, sp, "before") for sp in splits}

@@ -1,7 +1,7 @@
-﻿# Остановка CallNotes. Данные (база звонков) сохраняются.
-$ErrorActionPreference = "Continue"
-Set-Location -Path $PSScriptRoot
-& docker compose -f docker-compose.local.yml down
-Write-Host ""
-Write-Host "Сервис остановлен. База звонков сохранена, при следующем запуске всё будет на месте." -ForegroundColor Green
-Read-Host "Нажмите Enter, чтобы закрыть окно" | Out-Null
+﻿Set-Location -Path $PSScriptRoot
+docker compose -f compose.chechen.yml down
+if ($LASTEXITCODE -ne 0) {
+    Read-Host "Не удалось остановить сервис. Нажмите Enter" | Out-Null
+    exit 1
+}
+Write-Host "Сервис распознавания речи остановлен."

@@ -1,6 +1,6 @@
 # Тестовый стенд распознавания чеченской речи: Omnilingual ASR (Meta, Apache 2.0), язык che_Cyrl.
 # Полный образ Python (не slim): в нём есть компилятор C++, нужный для сборки библиотеки kenlm.
-FROM mirror.gcr.io/library/python:3.11-bookworm
+FROM mirror.gcr.io/library/python:3.11-bookworm AS asr
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg libsndfile1 build-essential cmake zlib1g-dev libbz2-dev liblzma-dev libboost-program-options-dev \
@@ -23,6 +23,15 @@ RUN git clone https://github.com/facebookresearch/omnilingual-asr.git /opt/oasr 
     && pip install --no-cache-dir --no-deps -e /opt/oasr \
     && python -c "import omnilingual_asr, workflows; print('рецепты обучения OK')"
 ENV OASR_DIR=/opt/oasr PYTHONPATH=/opt/oasr
+
+FROM asr AS web
+RUN pip install --no-cache-dir "flask>=3,<4" "gunicorn>=22,<27"
+WORKDIR /app
+COPY transcribe.py web.py index.html recorder.js ./
+ENV PYTHONUNBUFFERED=1
+CMD ["gunicorn", "-w", "1", "--threads", "4", "-b", "0.0.0.0:8000", "--timeout", "300", "web:app"]
+
+FROM asr AS tools
 # Рецепт обучения пишет графики обучения в TensorBoard — без него не стартует
 RUN pip install --no-cache-dir tensorboard "numpy<2" \
     && python -c "import numpy, torch.utils.tensorboard; print('tensorboard OK, numpy', numpy.__version__)"

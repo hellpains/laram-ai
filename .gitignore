@@ -49,4 +49,4 @@ node_modules/
 
 # Keep the current trained model; omit old checkpoints
 /models/*
-!/models/chechen-ctc-v3/
+!/models/chechen-ctc-v7/
